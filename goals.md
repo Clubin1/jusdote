@@ -39,3 +39,13 @@ j4podRLoAb7pZVJt
 
 jwt
 u0GJPnC7BX89TXoykxo3D7zR7rdORWXGkhR7kxuToHI=
+
+currently working on
+folder
+file
+message
+
+editor applies to be cool editor on cool team
+client posts job
+dote picks editor for job
+client can message editor
