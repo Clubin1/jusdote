@@ -8,6 +8,7 @@ import Messaging from './Components/Messaging/Messaging';
 import Dashboard from './Components/Dashboard/Dashboard';
 import Folder from './Components/Folder/Folder';
 import FolderItem from './Components/Folder/FolderItem';
+import Jobs from './Components/JobApplying/Jobs';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="/folder" element={<Folder />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/folder/:folderId" element={<FolderItem />} />
+          <Route path="/jobs" element={<Jobs />} />
         </Routes>
       </main>
     </Router>

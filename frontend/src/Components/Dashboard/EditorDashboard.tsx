@@ -4,7 +4,6 @@ import axios from 'axios';
 interface Application {
   _id: string;
   name: string;
-  // Add other properties as needed
 }
 
 function EditorDashboard() {
@@ -15,7 +14,6 @@ function EditorDashboard() {
       try {
         const accessToken = localStorage.getItem('access_token');
         if (!accessToken) {
-          // Handle the case when the access token is missing
           return;
         }
 

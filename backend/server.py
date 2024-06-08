@@ -6,7 +6,7 @@ from bson.objectid import ObjectId
 import boto3
 from flask_cors import CORS
 from db import db
-
+import botocore
 app = Flask(__name__)
 socketio = SocketIO(app)
 bcrypt = Bcrypt(app)
@@ -15,10 +15,12 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # AWS S3 configuration
 s3 = boto3.client(
     's3',
-    aws_access_key_id='your_aws_access_key_id',
-    aws_secret_access_key='your_aws_secret_access_key'
+    aws_access_key_id='AKIATCKAS6RV3PXIDJFN',
+    aws_secret_access_key='HueBZMUx8f/JR696KvHoQ2xxslL3o1Su7F70NWmq',
+    config=botocore.client.Config(signature_version='s3v4'),
+    region_name='us-east-2'
 )
-bucket_name = 'your_bucket_name'
+bucket_name = 'jusdote'
 
 # Routes
 
@@ -70,14 +72,15 @@ def protected():
     return jsonify({'message': f'Hello, {current_user}! This is a protected endpoint.'}), 200
 
 
-@app.route('/api/user-info', methods=['GET'])
+@app.route('/api/user-info/<user_id>', methods=['GET'])
 @jwt_required()
-def user_info():
-    current_user = get_jwt_identity()
+def user_info(user_id):
     collection = db['users']
-    user = collection.find_one({'username': current_user})
+    user = collection.find_one({'_id': ObjectId(user_id)})
+    
     if not user:
         return jsonify({'error': 'User not found'}), 404
+    # TODO: check to ensure fecthed user == currentUser
     user_info = {
         'username': user['username'],
         'role': user['role']
@@ -85,8 +88,6 @@ def user_info():
     return jsonify(user_info), 200
 
 # Admin
-
-
 @app.route('/admin/login', methods=['POST'])
 def admin_login():
     data = request.get_json()
@@ -123,7 +124,27 @@ def create_client_application():
     application_id = str(result.inserted_id)
     return jsonify({'_id': application_id}), 201
 
+@app.route('/api/client/applications/interest', methods=['POST'])
+@jwt_required()
+def express_interest():
+    current_user_id = get_jwt_identity()
+    data = request.get_json()
+    application_id = data.get('applicationId')
 
+    if not application_id:
+        return jsonify({'error': 'Application ID is required'}), 400
+
+    collection = db['client_applications']
+    result = collection.update_one(
+        {'_id': ObjectId(application_id)},
+        {'$addToSet': {'interested_users': current_user_id}}
+    )
+
+    if result.modified_count > 0:
+        return jsonify({'message': 'Interest expressed successfully'}), 200
+    else:
+        return jsonify({'error': 'Failed to express interest'}), 500
+    
 @app.route('/api/client/applications', methods=['GET'])
 @jwt_required()
 def get_client_applications():
@@ -180,8 +201,8 @@ def create_editor_application():
 @jwt_required()
 def get_editor_applications():
     current_user_id = get_jwt_identity()
-    collection = db['editor_applications']
-    applications = list(collection.find({'userId': current_user_id}))
+    collection = db['client_applications']
+    applications = list(collection.find({'interested_users': current_user_id}))
     for app in applications:
         app['_id'] = str(app['_id'])
     return jsonify(applications), 200
@@ -213,9 +234,22 @@ def delete_editor_application(id):
     else:
         return jsonify({'error': 'Application not found'}), 404
 
+@app.route('/api/client/query_applications', methods=['GET'])
+def query_client_application():
+    collection = db['client_applications']
+    query = request.args.to_dict()    
+    result = collection.find(query)
+    
+    applications = [
+        {
+            '_id': str(application['_id']),
+            **{key: value for key, value in application.items() if key != '_id'}
+        }
+        for application in result
+    ]
+    
+    return jsonify(applications), 200
 # Folders
-
-
 @app.route('/api/folders', methods=['POST'])
 @jwt_required()
 def create_folder():
@@ -293,25 +327,23 @@ def add_permission(folder_id):
 
 
 def has_permission(folder, user_id):
-    if folder['owner'] == user_id:
-        return True
     for permission in folder['permissions']:
-        if permission['user_id'] == user_id and permission['role'] in ['owner', 'viewer', 'editor']:
+        if permission['user_id'] != user_id:
+            continue 
+        if permission['user_id'] == user_id and permission['role'] == "owner" or permission['role'] == "editor":
             return True
     return False
 
 # Files
-
-
 @app.route('/api/folders/<folder_id>/files', methods=['POST'])
+@jwt_required()
 def post_file(folder_id):
+    user_id = get_jwt_identity()
     collection = db['folders']
     folder = collection.find_one({'_id': ObjectId(folder_id)})
     if not folder:
         return jsonify({'error': 'Folder not found'}), 404
-    user_id = request.args.get('user_id')
-    if not has_permission(folder, user_id, role='editor'):
-        return jsonify({'error': 'Unauthorized access'}), 403
+
     file = request.files.get('file')
     if not file:
         return jsonify({'error': 'No file uploaded'}), 400
@@ -332,7 +364,6 @@ def post_file(folder_id):
     )
     return jsonify({'file_id': file_id}), 201
 
-
 @app.route('/api/files/<file_id>', methods=['GET'])
 def get_file(file_id):
     files_collection = db['files']
@@ -348,7 +379,9 @@ def get_file(file_id):
     presigned_url = s3.generate_presigned_url(
         'get_object',
         Params={'Bucket': bucket_name, 'Key': file_metadata['filename']},
-        ExpiresIn=3600
+        ExpiresIn=3600,
+        HttpMethod='GET',
+        
     )
     file_metadata['_id'] = str(file_metadata['_id'])
     file_metadata['folder_id'] = str(file_metadata['folder_id'])
@@ -356,7 +389,6 @@ def get_file(file_id):
         'metadata': file_metadata,
         'download_url': presigned_url
     }), 200
-
 
 @app.route('/api/folders/<folder_id>/files', methods=['GET'])
 def get_folder_files(folder_id):

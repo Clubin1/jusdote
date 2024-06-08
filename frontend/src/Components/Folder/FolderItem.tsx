@@ -8,13 +8,14 @@ interface File {
   folder_id: string;
   size: number;
   content_type: string;
+  download_url: string;
 }
 
 const FolderItem: React.FC = () => {
   const { folderId } = useParams<{ folderId: string }>();
   const [files, setFiles] = useState<File[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const userId = localStorage.getItem('userId');
+
   useEffect(() => {
     fetchFiles();
   }, [folderId]);
@@ -28,10 +29,21 @@ const FolderItem: React.FC = () => {
       const response = await axios.get<File[]>(`http://localhost:5000/api/folders/${folderId}/files`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'User-Id': userId, 
+          'User-Id': userId,
         },
       });
-      setFiles(response.data);
+      const filesWithUrls = await Promise.all(
+        response.data.map(async (file) => {
+          const fileResponse = await axios.get<{ metadata: File; download_url: string }>(
+            `http://localhost:5000/api/files/${file._id}`,
+            {
+              params: { user_id: userId },
+            }
+          );
+          return { ...fileResponse.data.metadata, download_url: fileResponse.data.download_url };
+        })
+      );
+      setFiles(filesWithUrls);
     } catch (error) {
       console.error('Error fetching files:', error);
     }
@@ -61,6 +73,21 @@ const FolderItem: React.FC = () => {
     }
   };
 
+  const renderFilePreview = (file: File) => {
+    const fileExtension = file.filename.split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension || '')) {
+      return <img src={file.download_url} alt={file.filename} style={{ maxWidth: '100%' }} />;
+    } else if (['mp4', 'webm'].includes(fileExtension || '')) {
+      return (
+        <video controls style={{ maxWidth: '100%' }}>
+          <source src={file.download_url} type={file.content_type} />
+        </video>
+      );
+    } else {
+      return <a href={file.download_url}>{file.filename}</a>;
+    }
+  };
+
   return (
     <div>
       <h2>Folder: {folderId}</h2>
@@ -72,7 +99,7 @@ const FolderItem: React.FC = () => {
         <h3>Files</h3>
         <ul>
           {files.map((file) => (
-            <li key={file._id}>{file.filename}</li>
+            <li key={file._id}>{renderFilePreview(file)}</li>
           ))}
         </ul>
       </div>

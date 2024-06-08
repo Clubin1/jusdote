@@ -16,7 +16,7 @@ const Login: React.FC = () => {
       if (response.status === 200) {
         const { access_token, userId } = response.data;
         localStorage.setItem('access_token', access_token);
-        localStorage.setItem('userId', userId); // Store the user ID from the response
+        localStorage.setItem('userId', userId); 
         console.log('Login successful');
       } else {
         setError('Invalid username or password');

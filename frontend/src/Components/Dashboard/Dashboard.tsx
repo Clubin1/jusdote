@@ -13,16 +13,23 @@ function Dashboard() {
     const fetchUserInfo = async () => {
       try {
         const accessToken = localStorage.getItem('access_token');
-        if (!accessToken) {
+        const userId = localStorage.getItem('userId');
+        console.log('Access Token:', accessToken);
+        console.log('User ID:', userId);
+  
+        if (!accessToken || !userId) {
           setIsLoading(false);
           return;
         }
-
-        const response = await axios.get('http://localhost:5000/api/user-info', {
+  
+        const response = await axios.get(`http://localhost:5000/api/user-info/${userId}`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
         });
+  
+        console.log('Response:', response);
+        console.log('User Role:', response.data.role);
         setUserRole(response.data.role);
         setIsAuthenticated(true);
       } catch (error) {
@@ -31,7 +38,7 @@ function Dashboard() {
         setIsLoading(false);
       }
     };
-
+  
     fetchUserInfo();
   }, []);
 
@@ -39,14 +46,15 @@ function Dashboard() {
     return <div>Loading...</div>;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+  //if (!isAuthenticated) {
+    //return <Navigate to="/login" replace />;
+  //}
 
   return (
     <div className="App">
       {userRole === 'client' ? (
         <ClientDashboard />
+
       ) : userRole === 'editor' ? (
         <EditorDashboard />
       ) : null}
