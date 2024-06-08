@@ -51,12 +51,6 @@ dote picks editor for job
 client can message editor
 
 
-s3 = boto3.client(
-    's3',
-    aws_access_key_id='AKIATCKAS6RV3PXIDJFN',
-    aws_secret_access_key='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'
-)
-bucket_name = 'jusdote'
 
 - make a route that gets folders shared with you and display those on folder page
 - client sees users that are interested and can start a chat with them
