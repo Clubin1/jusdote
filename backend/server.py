@@ -13,7 +13,14 @@ bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 CORS(app, resources={r"/*": {"origins": "*"}})
 # AWS S3 configuration
-
+s3 = boto3.client(
+    's3',
+    aws_access_key_id='AKIATCKAS6RV3PXIDJFN',
+    aws_secret_access_key='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',
+    config=botocore.client.Config(signature_version='s3v4'),
+    region_name='us-east-2'
+)
+bucket_name = 'jusdote'
 
 # Routes
 
